@@ -23,13 +23,13 @@
 
 import os
 
-from PyQt4 import QtGui, uic
+from PyQt5 import QtGui, uic, QtWidgets
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'clone_geometry_dialog_base.ui'))
 
 
-class CloneGeometryDialog(QtGui.QDialog, FORM_CLASS):
+class CloneGeometryDialog(QtWidgets.QDialog, FORM_CLASS):
     def __init__(self, parent=None):
         """Constructor."""
         super(CloneGeometryDialog, self).__init__(parent)
