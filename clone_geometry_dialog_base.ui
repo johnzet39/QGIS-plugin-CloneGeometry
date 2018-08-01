@@ -215,6 +215,23 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_4">
      <item>
+      <widget class="QPushButton" name="pushButton_about">
+       <property name="toolTip">
+        <string>О программе...</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: rgba(255, 255, 255, 0);</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>:/plugins/_PrintTools/comp_print/icons/about.png</normaloff>:/plugins/_PrintTools/comp_print/icons/about.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -260,7 +277,7 @@
   <customwidget>
    <class>QgsColorButton</class>
    <extends>QToolButton</extends>
-   <header>qgis.gui</header>
+   <header>qgscolorbutton.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

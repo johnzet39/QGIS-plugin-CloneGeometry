@@ -20,16 +20,51 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt5.QtCore import QObject, QSettings, QTranslator, qVersion, QCoreApplication, Qt
+from PyQt5.QtCore import QObject, QSettings, QTranslator, qVersion, QCoreApplication, Qt, QVariant, QSize
 from PyQt5.QtGui import QColor, QIcon
-from PyQt5.QtWidgets import QDialogButtonBox, QColorDialog, QAction
-from qgis.core import  Qgis, QgsFeature, QgsGeometry, QgsMapLayer, QgsSpatialIndex, QgsFeatureRequest, QgsVectorLayer, QgsField, QgsProject, QgsSimpleLineSymbolLayer, QgsSimpleMarkerSymbolLayer, QgsWkbTypes, QgsRenderContext
+from PyQt5.QtWidgets import QDialogButtonBox, QColorDialog, QAction, QDialog
+from qgis.core import  (
+                        edit,
+                        Qgis,
+                        QgsFeature,
+                        QgsGeometry,
+                        QgsMapLayer,
+                        QgsSpatialIndex,
+                        QgsFeatureRequest,
+                        QgsVectorLayer,
+                        QgsField,
+                        QgsProject,
+                        QgsSimpleLineSymbolLayer,
+                        QgsSimpleMarkerSymbolLayer,
+                        QgsWkbTypes,
+                        QgsRenderContext,
+                        QgsVectorLayerUtils
+                        )
 # Initialize Qt resources from file resources.py
 from .resources_rc import *
 # Import the code for the dialog
 from .clone_geometry_dialog import CloneGeometryDialog
 import os.path
 import locale
+
+from PyQt5 import QtCore, QtGui
+from .about_ui import Ui_Dialog as AboutDialog
+
+class AbtDialog(QDialog):
+    def __init__(self):
+
+        super(AbtDialog, self).__init__()
+        self.about_ui = AboutDialog()
+        self.about_ui.setupUi(self)
+
+        self.plugin_dir = os.path.dirname(__file__)
+
+        self.about_ui.label_6.setPixmap(QtGui.QPixmap(':/plugins/CloneGeometry/icon.png').scaled(QSize(64, 64)))
+        self.about_ui.label_6.setScaledContents(False)
+        self.about_ui.label_version.setText('2017.1027')
+        self.about_ui.label_4.setText('Златанов Е.Г.')
+        self.about_ui.label.setText('CloneFeatures')
+        self.about_ui.textBrowser.setText('2015-2018. Клонирование объектов в существующий слой или новый временный слой. ')
 
 
 class CloneGeometry:
@@ -77,6 +112,15 @@ class CloneGeometry:
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&Clone geometry')
+
+        # about button
+        self.ui_about = AbtDialog()
+        self.dlg.pushButton_about.clicked.connect(self.show_about)
+
+    # about button
+    def show_about(self):
+        self.ui_about.setWindowFlags(self.ui_about.windowFlags() | Qt.WindowStaysOnTopHint | Qt.WindowMinMaxButtonsHint)
+        self.ui_about.show()
 
 
         # TODO: We are going to let the user set this up in a future iteration
@@ -297,24 +341,78 @@ class CloneGeometry:
             self.setStyleLayer(LayerB)
             
             if self.dlg.checkBoxAtrib.isChecked():
-                curlayer_fields = curlayer.dataProvider().fields()
-                curlayer_attribute_list = curlayer.dataProvider().fields().toList()
+                curlayer_attribute_list = curlayer.fields().toList()
                 LayerB_attribute_list = []
                 LayerBpr = LayerB.dataProvider()
                 
                 for attrib in curlayer_attribute_list:
                     if LayerB.fields().lookupField(attrib.name())==-1:
                         LayerB_attribute_list.append(QgsField(attrib.name(),attrib.type()))
-                LayerBpr.addAttributes(LayerB_attribute_list)
+                with edit(LayerB):
+                    for attr in LayerB_attribute_list:
+                        if attr.type() == 1: # иначе игнорируется поле с типом 1 (bool)
+                            attr = QgsField(attr.name(), QVariant.String) # конвертируем bool в string
+                        res_add = LayerB.addAttribute(attr)   
+                        if not res_add:
+                            print(u'Не создано поле {}'.format(attr.name())) 
+
+                # LayerBpr.addAttributes(LayerB_attribute_list)
                 LayerB.updateFields()
 
-            for feat in curlayer.selectedFeatures():
-                LayerB.dataProvider().addFeatures([feat])
-                
+            # for feat in curlayer.selectedFeatures():
+            #     LayerB.dataProvider().addFeatures([feat])
+
+
+            # ИЗ МОДУЛЯ Apend Features To layer -----------------------------------------------
+            # В старом варианте в QGIS3 при добавлении объектов с отличающимся набором аттрибутов
+            # происходила задержка с выводом сообщений в логи. Что затягивало процесс.
+            mapping = dict()
+            for target_idx in LayerB.fields().allAttributesList():
+                target_field = LayerB.fields().field(target_idx)
+                source_idx = curlayer.fields().indexOf(target_field.name())
+                if source_idx != -1:
+                    mapping[target_idx] = source_idx
+
+            features = curlayer.selectedFeatures()
+            destType = LayerB.geometryType()
+            destIsMulti = QgsWkbTypes.isMultiType(LayerB.wkbType())
+            new_features = []
+
+
+            for current, in_feature in enumerate(features):
+
+                attrs = {target_idx: in_feature[source_idx] for target_idx, source_idx in mapping.items()}
+
+                geom = QgsGeometry()
+
+                if in_feature.hasGeometry() and LayerB.isSpatial():
+                    # Convert geometry to match destination layer
+                    # Adapted from QGIS qgisapp.cpp, pasteFromClipboard()
+                    geom = in_feature.geometry()
+                    if destType != QgsWkbTypes.UnknownGeometry:
+                        newGeometry = geom.convertToType(destType, destIsMulti)
+                        if newGeometry.isNull():
+                            continue
+                        geom = newGeometry
+                    # Avoid intersection if enabled in digitize settings
+                    geom.avoidIntersections(QgsProject.instance().avoidIntersectionsLayers())
+
+                new_feature = QgsVectorLayerUtils().createFeature(LayerB, geom, attrs)
+                new_features.append(new_feature)
+
+            with edit(LayerB):
+                res = LayerB.addFeatures(new_features)
+            # ИЗ МОДУЛЯ Apend Features To layer -----------------------------------------------end
+
+
             root.insertLayer(0, LayerB)
             self.iface.messageBar().clearWidgets()
             self.iface.setActiveLayer(LayerB)
             curlayer.selectByIds([])
+
+            if res:
+                self.iface.messageBar().pushMessage(u"Выполнено", u"Склонировано {} объектов".format(len(new_features)), duration=5, level=0)
+
         else:                                                   #EXISTS LAYER
 
             myName = self.dlg.comboBox.currentText()
