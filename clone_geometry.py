@@ -21,7 +21,7 @@
  ***************************************************************************/
 """
 from PyQt5.QtCore import QObject, QSettings, QTranslator, qVersion, QCoreApplication, Qt, QVariant, QSize
-from PyQt5.QtGui import QColor, QIcon
+from PyQt5.QtGui import QColor, QIcon, QPixmap
 from PyQt5.QtWidgets import QDialogButtonBox, QColorDialog, QAction, QDialog
 from qgis.core import  (
                         edit,
@@ -115,6 +115,7 @@ class CloneGeometry:
 
         # about button
         self.ui_about = AbtDialog()
+        self.dlg.pushButton_about.setIcon(QIcon(':/plugins/CloneGeometry/about.png'))
         self.dlg.pushButton_about.clicked.connect(self.show_about)
 
     # about button
@@ -271,8 +272,9 @@ class CloneGeometry:
         for name, layer in layermap.items():
             if layer.type() == QgsMapLayer.VectorLayer:
                 if not layer.readOnly():
-                    if layer.geometryType() == self.iface.mapCanvas().currentLayer().geometryType():
-                        layerlist.append( layer.name() )
+                    if layer.providerType() not in ('oracle'):
+                        if layer.geometryType() == self.iface.mapCanvas().currentLayer().geometryType():
+                            layerlist.append( layer.name())
         return sorted( layerlist)
 
     def getVectorLayerByName( self, myName ):
@@ -327,12 +329,13 @@ class CloneGeometry:
         tomemory = False
         if self.dlg.radioToMemory.isChecked():  #MEMORY LAYER
             tomemory = True
-            if curlayer.geometryType()==QgsWkbTypes.PolygonGeometry :
-                geo = "MultiPolygon"
-            elif curlayer.geometryType()==QgsWkbTypes.LineGeometry :
-                geo = "MultiLineString"
-            elif curlayer.geometryType()==QgsWkbTypes.PointGeometry :
-                geo = "Point"
+            geo = QgsWkbTypes.displayString(curlayer.wkbType()) # wkbType string name of geometry
+            # if curlayer.geometryType()==QgsWkbTypes.PolygonGeometry :
+            #     geo = "MultiPolygon"
+            # elif curlayer.geometryType()==QgsWkbTypes.LineGeometry :
+            #     geo = "MultiLineString"
+            # elif curlayer.geometryType()==QgsWkbTypes.PointGeometry :
+            #     geo = "Point"
             
             LayerB = QgsVectorLayer(geo, self.dlg.lineEdit_2.text(), "memory")
             QgsProject.instance().addMapLayer(LayerB, False)
