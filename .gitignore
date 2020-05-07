@@ -7,3 +7,4 @@ Makefile
 *.pyc
 */*.pyc
 scripts/*s.sh
+changelog.txt
