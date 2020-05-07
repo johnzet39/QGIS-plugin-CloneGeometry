@@ -1,0 +1,5 @@
+__pycache__\
+i18n\
+scripts\
+Makefile
+*.pyc

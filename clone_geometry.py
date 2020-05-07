@@ -62,7 +62,7 @@ class AbtDialog(QDialog):
         self.about_ui.label_6.setPixmap(QtGui.QPixmap(':/plugins/CloneGeometry/icon.png').scaled(QSize(64, 64)))
         self.about_ui.label_6.setScaledContents(False)
         self.about_ui.label_version.setText('2017.1027')
-        self.about_ui.label_4.setText('Златанов Е.Г.')
+        self.about_ui.label_4.setText('Златанов Евгений')
         self.about_ui.label.setText('CloneFeatures')
         self.about_ui.textBrowser.setText('2015-2018. Клонирование объектов в существующий слой или новый временный слой. ')
 
