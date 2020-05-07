@@ -1,5 +1,9 @@
-__pycache__\
-i18n\
-scripts\
+__pycache__/
+__pycache__/*.*
+i18n/
+i18n/*.*
+scripts/
 Makefile
 *.pyc
+*/*.pyc
+scripts/*s.sh
